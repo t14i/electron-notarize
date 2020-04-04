@@ -58,11 +58,21 @@ export async function startNotarize(opts: NotarizeStartOptions): Promise<Notariz
   return await withTempDir<NotarizeResult>(async dir => {
       let filePath;
       if (path.extname(opts.appPath) == '.dmg') {
-          filePath = path.resolve(dir, opts.appPath)
-      } else {
-          const zipPath = path.resolve(dir, `${path.basename(opts.appPath, '.app')}.zip`);
-          d('zipping application to:', zipPath);
-          const zipResult = await spawn('zip', ['-r', '-y', zipPath, path.basename(opts.appPath)], {
+        d('copying application to:', filePath);
+        filePath = path.resolve(dir, path.basename(opts.appPath));
+          const cpResult = await spawn('cp', [path.basename(opts.appPath), filePath], {
+            cwd: path.dirname(opts.appPath),
+          });
+          if (cpResult.code !== 0) {
+            throw new Error(
+              `Failed to copy application, exited with code: ${cpResult.code}\n\n${cpResult.output}`,
+            );
+          }
+          d('copy succeeded, attempting to upload to Apple');
+      } else if (path.extname(opts.appPath) == '.app') {
+          filePath = path.resolve(dir, `${path.basename(opts.appPath, '.app')}.zip`);
+          d('zipping application to:', filePath);
+          const zipResult = await spawn('zip', ['-r', '-y', filePath, path.basename(opts.appPath)], {
               cwd: path.dirname(opts.appPath),
           });
           if (zipResult.code !== 0) {
@@ -71,8 +81,10 @@ export async function startNotarize(opts: NotarizeStartOptions): Promise<Notariz
               );
           }
           d('zip succeeded, attempting to upload to Apple');
-
-          filePath = zipPath;
+      } else {
+        throw new Error(
+          `Unexpected application file type.`,
+        );
       }
 
     const notarizeArgs = [
