@@ -57,7 +57,7 @@ export async function startNotarize(opts: NotarizeStartOptions): Promise<Notariz
   d('starting notarize process for app:', opts.appPath);
   return await withTempDir<NotarizeResult>(async dir => {
     let filePath;
-    if (path.extname(opts.appPath) == '.dmg') {
+    if (['.dmg', '.zip', '.pkg'].includes(path.extname(opts.appPath))) {
       d('copying application to:', filePath);
       filePath = path.resolve(dir, path.basename(opts.appPath));
       const cpResult = await spawn('cp', [path.basename(opts.appPath), filePath], {
